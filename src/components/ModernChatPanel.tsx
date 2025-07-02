@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User, Loader } from 'lucide-react';
-import { useModernTldrawAI } from '../utils/modernAiService';
+import { TldrawModernAIService } from '../utils/modernAiService';
 import { Editor } from 'tldraw';
 
 interface Message {
@@ -26,9 +26,8 @@ export function ModernChatPanel({ editor }: ModernChatPanelProps) {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // 使用新的 tldraw AI hook
-  const { prompt, cancel } = useModernTldrawAI(editor);
+  const aiServiceRef = useRef<TldrawModernAIService>(new TldrawModernAIService());
+  const currentRequestRef = useRef<{ cancel?: () => void } | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -39,7 +38,7 @@ export function ModernChatPanel({ editor }: ModernChatPanelProps) {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || isLoading) return;
+    if (!inputValue.trim() || isLoading || !editor) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -49,15 +48,47 @@ export function ModernChatPanel({ editor }: ModernChatPanelProps) {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const userInput = inputValue;
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // 使用官方 tldraw AI 功能
-      const result = prompt(inputValue);
+      // 直接使用 AI 服务生成更改
+      const aiService = aiServiceRef.current;
+      const generateFn = aiService.createGenerateFunction();
       
-      // 等待 AI 处理完成
-      await result.promise;
+      // 创建模拟的提示对象
+      const mockPrompt = {
+        message: userInput,
+        canvasContent: {
+          shapes: editor.getCurrentPageShapes(),
+          bindings: [],
+          assets: []
+        },
+        contextBounds: editor.getViewportPageBounds().toJson(),
+        promptBounds: editor.getViewportPageBounds().toJson()
+      };
+
+      // 生成 AI 更改
+      const controller = new AbortController();
+      currentRequestRef.current = { cancel: () => controller.abort() };
+      
+      const changes = await generateFn({ 
+        editor, 
+        prompt: mockPrompt, 
+        signal: controller.signal 
+      });
+
+      // 应用更改到编辑器
+      if (changes && changes.length > 0) {
+        editor.run(() => {
+          changes.forEach(change => {
+            if (change.type === 'createShape') {
+              editor.createShape(change.shape);
+            }
+          });
+        });
+      }
 
       // 添加 AI 响应消息
       const aiMessage: Message = {
@@ -69,6 +100,11 @@ export function ModernChatPanel({ editor }: ModernChatPanelProps) {
 
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was cancelled');
+        return;
+      }
+      
       console.error('AI processing error:', error);
       
       const errorMessage: Message = {
@@ -81,6 +117,7 @@ export function ModernChatPanel({ editor }: ModernChatPanelProps) {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      currentRequestRef.current = null;
     }
   };
 
@@ -92,8 +129,8 @@ export function ModernChatPanel({ editor }: ModernChatPanelProps) {
   };
 
   const handleCancel = () => {
-    if (cancel) {
-      cancel();
+    if (currentRequestRef.current?.cancel) {
+      currentRequestRef.current.cancel();
       setIsLoading(false);
     }
   };
