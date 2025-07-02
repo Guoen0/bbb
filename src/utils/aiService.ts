@@ -157,7 +157,8 @@ export class TldrawAIService {
             geo: 'ellipse',
             w: 100,
             h: 100,
-            fill: this.extractColorFromMessage(message) || 'blue',
+            color: this.extractColorFromMessage(message) || 'blue',
+            fill: 'solid',
           }
         };
 
@@ -169,7 +170,8 @@ export class TldrawAIService {
             geo: 'rectangle',
             w: 120,
             h: 80,
-            fill: this.extractColorFromMessage(message) || 'green',
+            color: this.extractColorFromMessage(message) || 'green',
+            fill: 'solid',
           }
         };
 
@@ -200,21 +202,28 @@ export class TldrawAIService {
 
   /**
    * 从消息中提取颜色
+   * tldraw 使用预定义的颜色值，不是标准颜色名称
    */
   private extractColorFromMessage(message: string): string | null {
     const colorMap: { [key: string]: string } = {
       '红': 'red',
       '红色': 'red',
-      '蓝': 'blue',
+      '蓝': 'blue', 
       '蓝色': 'blue',
       '绿': 'green',
       '绿色': 'green',
       '黄': 'yellow',
       '黄色': 'yellow',
-      '紫': 'purple',
-      '紫色': 'purple',
+      '紫': 'violet',
+      '紫色': 'violet',
       '橙': 'orange',
       '橙色': 'orange',
+      '黑': 'black',
+      '黑色': 'black',
+      '白': 'white',
+      '白色': 'white',
+      '灰': 'grey',
+      '灰色': 'grey',
     };
 
     for (const [keyword, color] of Object.entries(colorMap)) {

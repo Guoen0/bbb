@@ -86,6 +86,7 @@
 - **检查**：形状数据结构是否符合 tldraw 格式
 - **可能原因**：形状属性映射错误
 - **解决**：检查 createShapeFromIntent 方法
+- **常见错误**：使用 `fill: 'red'` 而不是 `color: 'red', fill: 'solid'`
 
 #### 问题3：编辑器引用为空
 - **检查**：editorRef.current 是否有值
