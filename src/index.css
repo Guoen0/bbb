@@ -118,3 +118,168 @@ body {
   background: #ccc;
   cursor: not-allowed;
 }
+
+/* 现代化聊天面板样式 */
+.chat-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.chat-icon {
+  color: #007bff;
+}
+
+.chat-status {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
+}
+
+.message {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.message-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.user-message .message-icon {
+  background: #007bff;
+  color: white;
+}
+
+.ai-message .message-icon {
+  background: #f0f0f0;
+  color: #666;
+}
+
+.message-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-text {
+  background: white;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  word-wrap: break-word;
+}
+
+.user-message .message-text {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.message-time {
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.input-container {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.input-container textarea {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  min-height: 36px;
+  max-height: 100px;
+}
+
+.input-container textarea:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.send-button {
+  padding: 8px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+}
+
+.send-button:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.cancel-button {
+  background: #ff4444;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.cancel-button:hover {
+  background: #cc3333;
+}
+
+.chat-hints {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+  flex-wrap: wrap;
+}
+
+.hint-button {
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.hint-button:hover {
+  background: #e0e0e0;
+  border-color: #bbb;
+}
+
+.loading {
+  opacity: 0.8;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

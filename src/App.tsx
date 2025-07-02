@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import CanvasArea from './components/CanvasArea';
-import ChatPanel from './components/ChatPanel';
+import { ModernChatPanel } from './components/ModernChatPanel';
 import { Message } from './types';
 import { aiService } from './utils/aiService';
 import { Editor, createShapeId } from 'tldraw';
@@ -135,10 +135,8 @@ function App() {
         <CanvasArea onEditorMount={handleEditorMount} />
       </div>
       <div className="chat-container">
-        <ChatPanel
-          messages={messages}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
+        <ModernChatPanel
+          editor={editorRef.current || undefined}
         />
       </div>
     </div>

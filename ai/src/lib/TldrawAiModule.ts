@@ -1,7 +1,6 @@
 import {
 	Box,
 	Editor,
-	exhaustiveSwitchError,
 	FileHelpers,
 	structuredClone,
 	TLShapePartial,
@@ -110,7 +109,7 @@ export class TldrawAiModule {
 					break
 				}
 				default:
-					exhaustiveSwitchError(change)
+					console.warn('Unknown change type:', (change as any).type)
 			}
 		} catch (e) {
 			console.error('Error handling change:', e)
