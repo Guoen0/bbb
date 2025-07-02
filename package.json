@@ -14,7 +14,8 @@
     "react-dom": "^18.2.0",
     "tldraw": "^3.13.4",
     "openai": "^4.0.0",
-    "lucide-react": "^0.263.1"
+    "lucide-react": "^0.263.1",
+    "tldraw-ai": "file:./ai"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
