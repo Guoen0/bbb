@@ -30,6 +30,20 @@
 npm install
 ```
 
+### 本地 AI 包集成说明
+
+本项目依赖本地 AI 包（`tldraw-ai`），用于画布与 AI 的深度集成。
+
+- 已在 `package.json` 中通过 `"tldraw-ai": "file:./ai"` 方式引入，无需单独安装。
+- 开发者如需在代码中调用 AI 能力，请直接引用：
+
+```ts
+import { useTldrawAi, TldrawAiModule, TldrawAiTransform } from 'tldraw-ai'
+```
+
+- AI 包源码位于 `ai/` 目录，支持本地热更新和调试。
+- 详细用法见 `ai/API_USAGE.md`。
+
 ### 启动开发服务器
 
 ```bash

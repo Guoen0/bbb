@@ -10,11 +10,12 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
-    "lucide-react": "^0.263.1",
-    "openai": "^5.8.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tldraw": "^3.13.4"
+    "tldraw": "^3.13.4",
+    "openai": "^5.8.2",
+    "lucide-react": "^0.263.1",
+    "tldraw-ai": "file:./ai"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
