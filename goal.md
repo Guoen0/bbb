@@ -3,7 +3,7 @@
 - react
 - vite
 - tldraw
-- openai-agents
+- openai
 
 ## 目标
 一个网站，左边是tldraw画布，右边是Agent对话历史记录。agent帮助用户在tldraw画布里创作任何内容。

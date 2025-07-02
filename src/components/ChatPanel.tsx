@@ -1,84 +1,84 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Message } from '../types';
+import React, { useState, useEffect, useRef } from 'react'
+import { Message } from '../types/chat'
+import './ChatPanel.css'
 
 interface ChatPanelProps {
-  messages: Message[];
-  onSendMessage: (content: string) => void;
-  isLoading: boolean;
+  messages: Message[]
+  onSendMessage: (text: string) => void
+  isProcessing?: boolean
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages, onSendMessage, isLoading }) => {
-  const [inputValue, setInputValue] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+function ChatPanel({ messages, onSendMessage, isProcessing = false }: ChatPanelProps) {
+  const [inputText, setInputText] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  // 自动滚动到最下方
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
+  // 当消息更新时自动滚动
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    scrollToBottom()
+  }, [messages])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputValue.trim() && !isLoading) {
-      onSendMessage(inputValue.trim());
-      setInputValue('');
-    }
-  };
+  const handleSendMessage = () => {
+    if (!inputText.trim()) return
+
+    onSendMessage(inputText)
+    setInputText('')
+  }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
+      e.preventDefault()
+      handleSendMessage()
     }
-  };
+  }
 
   return (
-    <>
+    <div className="chat-container">
       <div className="chat-header">
-        AI 创作助手
+        <h2>AI 助手</h2>
       </div>
-      
       <div className="chat-messages">
-        {messages.map((message) => (
+        {messages.map(message => (
           <div
             key={message.id}
-            className={`message ${message.role}`}
+            className={`message ${message.isUser ? 'user' : 'ai'}`}
           >
-            {message.content}
+            <div className="message-content">
+              {message.text}
+              {message.image && (
+                <div className="message-image">
+                  <img src={message.image} alt="截图" />
+                </div>
+              )}
+            </div>
+            <div className="message-time">
+              {message.timestamp.toLocaleTimeString()}
+            </div>
           </div>
         ))}
-        {isLoading && (
-          <div className="message assistant">
-            正在思考中...
-          </div>
-        )}
         <div ref={messagesEndRef} />
       </div>
-
-      <div className="chat-input-container">
-        <form onSubmit={handleSubmit}>
-          <textarea
-            className="chat-input"
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="描述你想要创作的内容..."
-            rows={3}
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!inputValue.trim() || isLoading}
-          >
-            发送
-          </button>
-        </form>
+      <div className="chat-input">
+        <textarea
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyPress={handleKeyPress}
+          placeholder="输入你的消息..."
+          rows={3}
+        />
+        <button 
+          onClick={handleSendMessage}
+          disabled={isProcessing}
+        >
+          {isProcessing ? '处理中...' : '发送'}
+        </button>
       </div>
-    </>
-  );
-};
+    </div>
+  )
+}
 
-export default ChatPanel;
+export default ChatPanel 

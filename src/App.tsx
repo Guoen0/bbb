@@ -1,146 +1,266 @@
-import React, { useState, useCallback, useRef } from 'react';
-import CanvasArea from './components/CanvasArea';
-import { ModernChatPanel } from './components/ModernChatPanel';
-import { Message } from './types';
-import { aiService } from './utils/aiService';
-import { Editor, createShapeId } from 'tldraw';
+import React, { useState, useRef } from 'react'
+import { Tldraw, useEditor } from 'tldraw'
+import { Message } from './types/chat'
+import { canvasAiService } from './services/aiService'
+import { TLAiSerializedPrompt } from './aiServer/types'
+import ChatPanel from './components/ChatPanel'
+import ScreenshotButton from './components/ScreenshotButton'
+import 'tldraw/tldraw.css'
+import './App.css'
 
 function App() {
+  const editorRef = useRef<any>(null)
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      role: 'assistant',
-      content: '你好！我是你的 AI 创作助手。我可以帮助你在画布上创作任何内容。请告诉我你想要创作什么，或者直接在画布上开始绘制！',
-      timestamp: Date.now(),
-    },
-  ]);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const editorRef = useRef<Editor | null>(null);
-
-  // 设置编辑器引用
-  const handleEditorMount = useCallback((editor: Editor) => {
-    editorRef.current = editor;
-    console.log('Canvas mounted:', editor);
-  }, []);
-
-  // 应用画布更新
-  const applyCanvasUpdate = useCallback((canvasUpdate: any) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    try {
-      // 创建形状
-      if (canvasUpdate.shapes && canvasUpdate.shapes.length > 0) {
-        canvasUpdate.shapes.forEach((shapeData: any) => {
-          // 生成唯一的形状 ID
-          const shapeId = createShapeId();
-          
-          // 根据形状类型创建对应的形状
-          if (shapeData.type === 'geo') {
-            editor.createShape({
-              id: shapeId,
-              type: 'geo',
-              x: shapeData.x || 100,
-              y: shapeData.y || 100,
-              props: {
-                geo: shapeData.props.geo || 'rectangle',
-                w: shapeData.props.w || 100,
-                h: shapeData.props.h || 100,
-                fill: shapeData.props.fill || 'blue',
-              }
-            });
-          } else if (shapeData.type === 'text') {
-            editor.createShape({
-              id: shapeId,
-              type: 'text',
-              x: shapeData.x || 100,
-              y: shapeData.y || 100,
-              props: {
-                text: shapeData.props.text || '文本',
-                size: shapeData.props.size || 'medium',
-              }
-            });
-          } else if (shapeData.type === 'arrow') {
-            editor.createShape({
-              id: shapeId,
-              type: 'arrow',
-              x: shapeData.x || 100,
-              y: shapeData.y || 100,
-              props: {
-                start: shapeData.props.start || { x: 0, y: 0 },
-                end: shapeData.props.end || { x: 100, y: 0 },
-              }
-            });
-          }
-        });
-        
-        // 将视图居中到新创建的形状
-        editor.zoomToFit();
-      }
-    } catch (error) {
-      console.error('Error applying canvas update:', error);
+      text: '你好！我是你的 AI 助手，可以帮助你在画布上创作内容。',
+      isUser: false,
+      timestamp: new Date()
     }
-  }, []);
+  ])
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedShapes, setSelectedShapes] = useState<any[]>([])
+  const [showScreenshotButton, setShowScreenshotButton] = useState(false)
+  const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 })
 
-  const handleSendMessage = useCallback(async (content: string) => {
-    const userMessage: Message = {
+  const handleSendMessage = async (text: string) => {
+    const newMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    };
+      text: text,
+      isUser: true,
+      timestamp: new Date()
+    }
 
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+    setMessages(prev => [...prev, newMessage])
 
-    try {
-      // 调用 AI 服务
-      const aiResponse = await aiService.processUserMessage(content);
-      
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: aiResponse.message || '抱歉，我无法处理这个请求。',
-        timestamp: Date.now(),
-      };
-      
-      setMessages(prev => [...prev, aiMessage]);
-      
-      // 如果有画布更新，应用到编辑器
-      if (aiResponse.canvasUpdate && editorRef.current) {
-        console.log('Canvas update received:', aiResponse.canvasUpdate);
-        applyCanvasUpdate(aiResponse.canvasUpdate);
-      }
-      
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
+    // 检查 API 配置
+    if (!canvasAiService.isConfigured()) {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '抱歉，处理您的请求时出现了错误。请稍后再试。',
-        timestamp: Date.now(),
-      };
-      
-      setMessages(prev => [...prev, errorMessage]);
-      setIsLoading(false);
+        text: '错误：请配置 OpenAI API 密钥。在项目根目录创建 .env 文件并添加 VITE_OPENAI_API_KEY=你的密钥',
+        isUser: false,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+      return
     }
-  }, []);
+
+    setIsProcessing(true)
+
+    try {
+      // 添加处理中的消息
+      const processingMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        text: '正在处理你的请求...',
+        isUser: false,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, processingMessage])
+
+      // 获取当前画布状态
+      const editor = editorRef.current
+      if (!editor) {
+        throw new Error('画布编辑器未初始化')
+      }
+
+      // 获取画布状态
+      const allShapes = editor.getCurrentPageShapes()
+      const viewport = editor.getViewportPageBounds()
+      
+      console.log('当前画布形状:', allShapes)
+      console.log('视口范围:', viewport)
+      
+      // 构建 AI 提示
+      const prompt: TLAiSerializedPrompt = {
+        message: text,
+        canvasContent: {
+          shapes: allShapes,
+          bindings: [],
+          assets: []
+        },
+        contextBounds: {
+          x: viewport.x,
+          y: viewport.y,
+          w: viewport.w,
+          h: viewport.h
+        },
+        promptBounds: {
+          x: viewport.x,
+          y: viewport.y,
+          w: viewport.w,
+          h: viewport.h
+        }
+      }
+
+      // 调用 AI 服务
+      const result = await canvasAiService.generateCanvasChanges(prompt)
+
+      // 应用变更到画布
+      if (result.changes.length > 0) {
+        console.log('AI 生成的变更:', result.changes)
+        
+        // 应用每个变更到画布
+        let talkMessages: string[] = []
+        
+        for (const change of result.changes) {
+          try {
+            switch (change.type) {
+              case 'createShape':
+                if (change.shape) {
+                  editor.createShapes([change.shape])
+                }
+                break
+              case 'updateShape':
+                if (change.shape) {
+                  editor.updateShapes([change.shape])
+                }
+                break
+              case 'deleteShape':
+                if (change.shapeId) {
+                  editor.deleteShapes([change.shapeId])
+                }
+                break
+              case 'talk':
+                if (change.text) {
+                  talkMessages.push(change.text)
+                }
+                break
+              default:
+                console.warn('未知的变更类型:', change.type)
+            }
+          } catch (error) {
+            console.error('应用变更失败:', change, error)
+          }
+        }
+        
+        // 添加 AI 对话消息到聊天面板
+        if (talkMessages.length > 0) {
+          const aiTalkMessage: Message = {
+            id: (Date.now() + 2).toString(),
+            text: talkMessages.join('\n'),
+            isUser: false,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, aiTalkMessage])
+        }
+        
+        // 如果有画布变更，显示成功消息
+        const canvasChanges = result.changes.filter(change => change.type !== 'talk')
+        if (canvasChanges.length > 0) {
+          const successMessage: Message = {
+            id: (Date.now() + 3).toString(),
+            text: `成功应用 ${canvasChanges.length} 个画布变更`,
+            isUser: false,
+            timestamp: new Date()
+          }
+          setMessages(prev => [...prev, successMessage])
+        }
+      } else {
+        const noChangeMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          text: 'AI 没有生成任何变更',
+          isUser: false,
+          timestamp: new Date()
+        }
+        setMessages(prev => [...prev, noChangeMessage])
+      }
+
+    } catch (error) {
+      console.error('AI 处理失败:', error)
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        text: `处理失败: ${error instanceof Error ? error.message : '未知错误'}`,
+        isUser: false,
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  // 监听编辑器选择变化
+  const handleEditorMount = (editor: any) => {
+    editorRef.current = editor
+    
+    // 监听选择变化
+    const handleSelectionChange = () => {
+      const selected = editor.getSelectedShapes()
+      setSelectedShapes(selected)
+      
+      if (selected.length > 1) {
+        // 获取选中区域的边界框
+        const selectionBounds = editor.getSelectionPageBounds()
+        if (selectionBounds) {
+          
+          // 获取画布容器的位置
+          const canvasContainer = document.querySelector('.tl-container')
+          if (canvasContainer) {
+            const containerRect = canvasContainer.getBoundingClientRect()
+            
+            // 获取视口信息
+            const viewport = editor.getViewportPageBounds()
+            const zoom = editor.getZoomLevel()
+            
+            // 计算按钮位置（相对于画布容器）
+            const buttonX = (selectionBounds.x - viewport.x) * zoom + containerRect.left + selectionBounds.w * zoom / 2 - 50
+            const buttonY = (selectionBounds.y - viewport.y) * zoom + containerRect.top + selectionBounds.h * zoom + 10
+            
+            setButtonPosition({
+              x: buttonX,
+              y: buttonY
+            })
+            setShowScreenshotButton(true)
+          }
+        }
+      } else {
+        setShowScreenshotButton(false)
+      }
+    }
+    
+    // 添加选择变化监听器
+    editor.store.listen(handleSelectionChange, { scope: 'session' })
+    
+    // 添加视口变化监听器（处理缩放和平移）
+    const handleViewportChange = () => {
+      if (selectedShapes.length > 1) {
+        handleSelectionChange()
+      }
+    }
+    
+    editor.store.listen(handleViewportChange, { scope: 'session' })
+    
+    // 初始检查
+    handleSelectionChange()
+  }
+
+  // 添加消息到聊天记录
+  const addMessage = (message: Message) => {
+    setMessages(prev => [...prev, message])
+  }
 
   return (
-    <div className="app-container">
+    <div className="app">
       <div className="canvas-container">
-        <CanvasArea onEditorMount={handleEditorMount} />
+        <Tldraw onMount={handleEditorMount} />
+        {showScreenshotButton && (
+          <ScreenshotButton
+            editor={editorRef.current}
+            selectedShapes={selectedShapes}
+            position={buttonPosition}
+            onAddMessage={addMessage}
+            isProcessing={isProcessing}
+            setIsProcessing={setIsProcessing}
+          />
+        )}
       </div>
-      <div className="chat-container">
-        <ModernChatPanel
-          editor={editorRef.current || undefined}
-        />
-      </div>
+      <ChatPanel 
+        messages={messages}
+        onSendMessage={handleSendMessage}
+        isProcessing={isProcessing}
+      />
     </div>
-  );
+  )
 }
 
-export default App;
+export default App 
