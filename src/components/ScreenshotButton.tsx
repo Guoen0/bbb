@@ -1,7 +1,7 @@
 import React from 'react'
-import { TLShape } from 'tldraw'
+import { TLShape, AssetRecordType } from 'tldraw'
 import { Message } from '../types/chat'
-import { canvasAiService } from '../services/aiService'
+import { canvasAiService } from '../services/aiService_agent'
 import { TLAiSerializedPrompt } from '../aiServer/types'
 import './ScreenshotButton.css'
 
@@ -23,7 +23,7 @@ const ScreenshotButton: React.FC<ScreenshotButtonProps> = ({
   setIsProcessing
 }) => {
   // 发送图片给 AI 分析
-  const sendImageToAI = async (imageDataUrl: string, userPrompt: string) => {
+  const sendImageToAI = async (imageDataUrl: string) => {
     if (!canvasAiService.isConfigured()) {
       const errorMessage: Message = {
         id: Date.now().toString(),
@@ -42,66 +42,95 @@ const ScreenshotButton: React.FC<ScreenshotButtonProps> = ({
     try {
       if (!editor) return
 
-      // 构建多模态提示
-      const prompt: TLAiSerializedPrompt = {
-        message: [
-          { type: 'text', text: userPrompt },
-          { type: 'image', src: imageDataUrl }
-        ],
-        canvasContent: {
-          shapes: editor.getCurrentPageShapes(),
-          bindings: [],
-          assets: []
-        },
-        contextBounds: { x: 0, y: 0, w: 1000, h: 800 },
-        promptBounds: { x: 0, y: 0, w: 1000, h: 800 }
-      }
+      const imageB64 = await canvasAiService.screenshotGenerate(imageDataUrl)
+      const url = imageB64 ? `data:image/png;base64,${imageB64}` : null
 
-      const result = await canvasAiService.generateCanvasChanges(prompt)
 
-      // 处理 AI 响应
-      if (result.changes.length > 0) {
-        let talkMessages: string[] = []
+      // 回写到画布
+      try {
+        // 使用正确的 tldraw API 创建图片
+        const assetId = AssetRecordType.createId()
         
-        for (const change of result.changes) {
-          try {
-            switch (change.type) {
-              case 'createShape':
-                if (change.shape) {
-                  editor.createShapes([change.shape])
-                }
-                break
-              case 'updateShape':
-                if (change.shape) {
-                  editor.updateShapes([change.shape])
-                }
-                break
-              case 'deleteShape':
-                if (change.shapeId) {
-                  editor.deleteShapes([change.shapeId])
-                }
-                break
-              case 'talk':
-                if (change.text) {
-                  talkMessages.push(change.text)
-                }
-                break
-            }
-          } catch (error) {
-            console.error('应用变更失败:', change, error)
-          }
+        // 创建临时图片元素来获取实际尺寸
+        if (!url) {
+          throw new Error('AI 生成的图片数据无效')
         }
         
-        if (talkMessages.length > 0) {
-          const aiResponse: Message = {
-            id: Date.now().toString(),
-            text: talkMessages.join('\n'),
-            isUser: false,
-            timestamp: new Date()
-          }
-          onAddMessage(aiResponse)
+        const img = new Image()
+        img.src = url
+        await new Promise((resolve) => {
+          img.onload = resolve
+        })
+        
+        // 使用实际图片尺寸，但限制最大尺寸以适应画布
+        const maxSize = 1024
+        let imageWidth = img.width
+        let imageHeight = img.height
+        
+        // 如果图片太大，按比例缩放
+        if (imageWidth > maxSize || imageHeight > maxSize) {
+          const ratio = Math.min(maxSize / imageWidth, maxSize / imageHeight)
+          imageWidth = Math.round(imageWidth * ratio)
+          imageHeight = Math.round(imageHeight * ratio)
         }
+        
+        // 获取画布中心位置，并确保图片完全可见
+        const viewport = editor.getViewportPageBounds()
+        const centerX = viewport.x + viewport.w / 2 - imageWidth / 2
+        const centerY = viewport.y + viewport.h / 2 - imageHeight / 2
+        
+        // 创建资源
+        editor.createAssets([
+          {
+            id: assetId,
+            type: 'image',
+            typeName: 'asset',
+            props: {
+              name: 'AI生成图片.png',
+              src: url,
+              w: imageWidth,
+              h: imageHeight,
+              mimeType: 'image/png',
+              isAnimated: false,
+            },
+            meta: {},
+          },
+        ])
+        
+        // 创建图片形状
+        editor.createShape({
+          type: 'image',
+          x: centerX,
+          y: centerY,
+          props: {
+            assetId,
+            w: imageWidth,
+            h: imageHeight,
+          },
+        })
+
+        // 添加成功消息
+        const successMessage: Message = {
+          id: Date.now().toString(),
+          text: '✨ AI已生成并添加到画布',
+          isUser: false,
+          timestamp: new Date()
+        }
+        onAddMessage(successMessage)
+
+      } catch (error) {
+        console.error('回写到画布失败:', error)
+        const errorMessage: Message = {
+          id: Date.now().toString(),
+          text: `回写到画布失败: ${error instanceof Error ? error.message : '未知错误'}`,
+          isUser: false,
+          timestamp: new Date()
+        }
+        onAddMessage(errorMessage)
       }
+      
+
+      
 
     } catch (error) {
       console.error('AI 分析失败:', error)
@@ -162,7 +191,7 @@ const ScreenshotButton: React.FC<ScreenshotButtonProps> = ({
       console.log('截图已添加到聊天记录，开始发送给AI分析')
       
       // 发送给AI分析
-      await sendImageToAI(dataUrl, "这张图片的意图是什么？")
+      await sendImageToAI(dataUrl)
       
     } catch (error) {
       console.error('截图失败:', error)

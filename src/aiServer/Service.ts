@@ -40,28 +40,11 @@ export class AiService {
     }
   }
 
-  async *stream(prompt: TLAiSerializedPrompt): AsyncGenerator<TLAiChange> {
-    try {
-      // 简化版流式处理 - 先生成所有事件，然后逐个返回变更
-      const events = await this.generateEvents(prompt)
-      const changes = convertSimpleEventsToTldrawChanges(prompt, events)
-      
-      for (const change of changes) {
-        yield change
-        // 添加小延迟以模拟流式效果
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-    } catch (error) {
-      console.error('AI streaming error:', error)
-      throw error
-    }
-  }
-
   private async generateEvents(prompt: TLAiSerializedPrompt): Promise<ISimpleEvent[]> {
     const messages = this.buildPromptMessages(prompt)
     
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-4.1',
+      model: 'gpt-4.1-mini',
       messages,
       response_format: { type: 'json_object' },
       max_tokens: 4096,

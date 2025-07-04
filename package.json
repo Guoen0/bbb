@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@openai/agents": "^0.0.10",
+    "@openai/agents-core": "^0.0.10",
     "@tldraw/ai": "latest",
     "@tldraw/tlschema": "latest",
     "dotenv": "^16.5.0",

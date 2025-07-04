@@ -1,4 +1,4 @@
-import { AiService } from '../aiServer/Service'
+import { AiService } from '../aiServer_agent/Service'
 import { Config, TLAiSerializedPrompt, TLAiResult } from '../aiServer/types'
 
 // 延迟初始化 AI 服务
@@ -21,11 +21,12 @@ function getAiService(): AiService {
 
 // 简化的 AI 服务接口
 export class CanvasAiService {
-  // 生成画布变更
-  async generateCanvasChanges(prompt: TLAiSerializedPrompt): Promise<TLAiResult> {
+
+  async screenshotGenerate(image: string): Promise<string> {
     try {
       const service = getAiService()
-      return await service.generate(prompt)
+      return await service.screenshotGenerate(image)
+
     } catch (error) {
       console.error('AI 生成失败:', error)
       throw error

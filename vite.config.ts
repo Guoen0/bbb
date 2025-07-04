@@ -6,5 +6,16 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  optimizeDeps: {
+    exclude: ['@openai/agents-realtime'],
+  },
+  resolve: {
+    alias: {
+      '@openai/agents-realtime': './src/utils/agents-realtime-polyfill.js'
+    }
+  },
+  define: {
+    global: 'globalThis'
   }
 }) 
